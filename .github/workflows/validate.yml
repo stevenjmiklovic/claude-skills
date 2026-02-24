@@ -1,0 +1,55 @@
+name: Validate Skills
+
+on:
+  pull_request:
+    paths:
+      - 'skills/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required skill files
+        shell: bash
+        run: |
+          exit_code=0
+          for skill_dir in skills/*/; do
+            skill="${skill_dir%/}"
+            for required in README.md skill.yaml instructions.md; do
+              if [ ! -f "${skill}/${required}" ]; then
+                echo "ERROR: ${skill} is missing required file: ${required}"
+                exit_code=1
+              fi
+            done
+          done
+          exit $exit_code
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/download/v4.44.6/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Validate skill.yaml fields
+        shell: bash
+        run: |
+          exit_code=0
+          for skill_yaml in skills/*/skill.yaml; do
+            for field in name version description author; do
+              value=$(yq ".$field" "$skill_yaml")
+              if [ -z "$value" ] || [ "$value" = "null" ]; then
+                echo "ERROR: ${skill_yaml} is missing required field: ${field}"
+                exit_code=1
+              fi
+            done
+            tag_count=$(yq '.tags | length' "$skill_yaml")
+            if [ "$tag_count" -eq 0 ] 2>/dev/null; then
+              echo "ERROR: ${skill_yaml} must have at least one tag"
+              exit_code=1
+            fi
+          done
+          exit $exit_code

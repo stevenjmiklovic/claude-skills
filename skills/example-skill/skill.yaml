@@ -1,0 +1,7 @@
+name: example-skill
+version: 1.0.0
+description: A minimal example skill that demonstrates the skill format.
+author: your-github-username
+tags:
+  - example
+  - template
